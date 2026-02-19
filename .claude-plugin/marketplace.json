@@ -1,0 +1,17 @@
+{
+  "name": "request-plugins",
+  "owner": {
+    "name": "Request Labs",
+    "email": "pedro.vasconcelos@request.pt"
+  },
+  "metadata": {
+    "description": "Request Labs claude plugins",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "process-invoice-plugin",
+      "source": "./plugins/process-invoice-plugin"
+    }
+  ]
+}
