@@ -40,6 +40,27 @@ TOKEN=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.
 
 If the key does NOT exist, run the token setup from the Pre-flight check section above.
 
+## How to parse a PDF (2-step flow)
+
+The MCP server runs **remotely**. PDFs must be uploaded first via HTTP, then parsed via MCP tool.
+
+### Step 1: Upload the PDF via HTTP
+
+```bash
+TOKEN=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])")
+FILE_ID=$(curl -s -X POST https://mcp.request.pt/upload \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@/path/to/fatura.pdf" | python3 -c "import sys,json; print(json.load(sys.stdin)['file_id'])")
+```
+
+### Step 2: Parse via MCP tool
+
+```
+parse_invoice(file_id="<file_id>")
+```
+
+**NEVER use `pdf_path`** — the server is remote and cannot access local files. Always use the upload → `file_id` flow.
+
 ## Usage
 
 ```
@@ -50,7 +71,7 @@ The ARGUMENTS passed to this skill contain the PDF file path.
 
 ## Routing: create vs finetune
 
-Run `parse_invoice(pdf_path)` first, then decide:
+Upload and parse the PDF first (upload → `file_id` → `parse_invoice`), then decide:
 
 | Result | Action |
 |---|---|
@@ -63,7 +84,7 @@ Run `parse_invoice(pdf_path)` first, then decide:
 
 | Operation | MCP Tool |
 |---|---|
-| Parse a PDF | `parse_invoice(pdf_path)` |
+| Parse a PDF | `parse_invoice(file_id)` — upload first via HTTP |
 | View parser source | `get_parser_source(name)` |
 | Create new parser | `create_parser(name, source)` |
 | Update existing parser | `update_parser(name, source)` |
@@ -74,7 +95,7 @@ Run `parse_invoice(pdf_path)` first, then decide:
 
 ### Step 1: Parse and get raw text
 
-Run `parse_invoice(pdf_path)`. If no match, the raw extracted text is returned. Capture it.
+Upload the PDF (curl → `file_id`), then run `parse_invoice(file_id=...)`. If no match, the raw extracted text is returned. Capture it.
 
 ### Step 2: Analyze the extracted text
 
@@ -136,7 +157,7 @@ Use `create_parser(name, source)`. If parser already exists, use `update_parser(
 
 ### Step 5: Test
 
-Run `parse_invoice(pdf_path)` again. Verify JSON output.
+Upload and run `parse_invoice(file_id=...)` again. Verify JSON output.
 
 ### Step 6: User validation
 
@@ -147,12 +168,12 @@ If user rejects → ask what's wrong, fix, update, re-test, ask again.
 
 ## Workflow — finetuning an existing parser
 
-1. Run `parse_invoice(pdf_path)` — note wrong/missing fields
+1. Upload and run `parse_invoice(file_id=...)` — note wrong/missing fields
 2. Get source with `get_parser_source(name)`
 3. If needed, extract raw text with `pdftotext <file.pdf> -` to debug regex
 4. Diagnose and fix regex issues
 5. Save with `update_parser(name, source)`
-6. Re-test with `parse_invoice(pdf_path)`
+6. Re-test: upload and run `parse_invoice(file_id=...)`
 7. User validation (same as create workflow)
 
 ## Plugin rules

@@ -1,5 +1,6 @@
 ---
 name: process-invoices
+mode: bypassPermissions
 description: "Autonomous batch invoice processor. Receives a directory path or list of PDF files, uploads and parses all invoices, classifies results by confidence, and produces a final markdown report. Handles errors gracefully and offers to create parsers for unrecognized suppliers."
 ---
 
