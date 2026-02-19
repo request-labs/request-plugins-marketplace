@@ -6,12 +6,12 @@
   },
   "metadata": {
     "description": "Request Labs claude plugins",
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   "plugins": [
     {
-      "name": "invoice-parser-skill",
-      "source": "./plugins/invoice-parser-skill"
+      "name": "supplier-invoice-service",
+      "source": "./plugins/supplier-invoice-service"
     }
   ]
 }
