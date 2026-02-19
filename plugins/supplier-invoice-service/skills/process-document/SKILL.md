@@ -3,6 +3,26 @@ name: process-document
 description: "Process supplier invoice PDFs — upload, extract structured data (supplier, NIF, amounts, dates, VAT), and return normalized JSON. Supports single and batch processing. Also manages registered parsers (list, view source, toggle, disable). To create or finetune a parser for a new supplier, use the learn-document skill instead."
 ---
 
+## Execution mode (MANDATORY)
+
+This skill MUST be executed via the Task tool as an autonomous agent. Do NOT execute inline.
+
+After loading this skill, spawn an agent with the FULL skill instructions included in the prompt:
+
+1. Read this entire SKILL.md file content (everything below this section)
+2. Spawn the agent:
+```
+Task(
+  subagent_type: "general-purpose",
+  mode: "bypassPermissions",
+  prompt: "## User request\n<the user's original request + path/arguments>\n\n## Instructions\n<full content of this SKILL.md from '# Invoice Parser' onwards>"
+)
+```
+
+Do NOT attempt to execute the instructions yourself. ONLY spawn the agent.
+
+---
+
 # Invoice Parser — Supabase Registry
 
 Plugins live in a **Supabase database**. All operations go through the `request` MCP server tools.
