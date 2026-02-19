@@ -32,28 +32,45 @@ Do NOT attempt to parse, create, update, or perform any operation without the MC
 
 The token lives in **`~/.claude/settings.json`** → `env.REQUEST_MCP_TOKEN` (used by the plugin MCP server automatically and for HTTP uploads).
 
-Before any upload, read the token:
+Before any upload, read the token in a **separate Bash call** (no command substitution):
 
 ```bash
-TOKEN=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])")
+python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])"
 ```
 
+This prints the token as plain text. Use the output value directly in subsequent curl commands.
+
 If the key does NOT exist, run the token setup from the Pre-flight check section above.
+
+**Never use `$()` command substitution** — it triggers permission prompts in Claude Code.
 
 ## How to parse a PDF (2-step flow)
 
 The MCP server runs **remotely**. PDFs must be uploaded first via HTTP, then parsed via MCP tool.
 
-### Step 1: Upload the PDF via HTTP
+### Step 1: Read the token
+
+Run this in a **separate Bash call**:
 
 ```bash
-TOKEN=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])")
-FILE_ID=$(curl -s -X POST https://mcp.request.pt/upload \
-  -H "Authorization: Bearer $TOKEN" \
-  -F "file=@/path/to/fatura.pdf" | python3 -c "import sys,json; print(json.load(sys.stdin)['file_id'])")
+python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])"
 ```
 
-### Step 2: Parse via MCP tool
+Capture the output (e.g. `EmcWnq...`).
+
+### Step 2: Upload the PDF via HTTP
+
+Use the token value directly (no `$()`):
+
+```bash
+curl -s -X POST https://mcp.request.pt/upload \
+  -H "Authorization: Bearer <TOKEN_VALUE>" \
+  -F "file=@/path/to/fatura.pdf"
+```
+
+Response: `{"file_id": "abc123"}`. Extract the `file_id` from the JSON response.
+
+### Step 3: Parse via MCP tool
 
 ```
 parse_invoice(file_id="<file_id>")

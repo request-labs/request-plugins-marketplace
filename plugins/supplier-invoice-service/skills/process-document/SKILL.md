@@ -66,32 +66,45 @@ There is no delete operation — use `disable_parser` instead (soft delete).
 
 The token lives in **`~/.claude/settings.json`** → `env.REQUEST_MCP_TOKEN` (used by the plugin MCP server automatically and for HTTP uploads).
 
-Before any upload, read the token:
+Before any upload, read the token in a **separate Bash call** (no command substitution):
 
 ```bash
-TOKEN=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])")
+python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])"
 ```
+
+This prints the token as plain text. Use the output value directly in subsequent curl commands.
 
 If the key does NOT exist, run the token setup from the Pre-flight check section above.
 
-**Never hardcode the token.**
+**Never hardcode the token. Never use `$()` command substitution** — it triggers permission prompts in Claude Code.
 
 ## How to parse a PDF (2-step flow)
 
 The MCP server runs **remotely**. PDFs must be uploaded first via HTTP, then parsed via MCP tool. This keeps the PDF binary out of the Claude context window.
 
-### Step 1: Upload the PDF via HTTP
+### Step 1: Read the token
+
+Run this in a **separate Bash call**:
 
 ```bash
-TOKEN=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])")
+python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])"
+```
+
+Capture the output (e.g. `EmcWnq...`).
+
+### Step 2: Upload the PDF via HTTP
+
+Use the token value directly (no `$()`):
+
+```bash
 curl -s -X POST https://mcp.request.pt/upload \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer <TOKEN_VALUE>" \
   -F "file=@/path/to/fatura.pdf"
 ```
 
 Response: `{"file_id": "abc123"}`
 
-### Step 2: Parse via MCP tool
+### Step 3: Parse via MCP tool
 
 ```
 parse_invoice(file_id="abc123")
@@ -103,16 +116,22 @@ The `file_id` is a short string — no base64, no large payloads, minimal tokens
 
 ### Batch processing
 
-For multiple PDFs, use a Bash loop:
+For multiple PDFs, first read the token (Step 1 above), then use a **Python helper script** to upload all files — this avoids `$()` in Bash:
 
 ```bash
-TOKEN=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])")
-for pdf in /path/to/folder/*.pdf; do
-  FILE_ID=$(curl -s -X POST https://mcp.request.pt/upload \
-    -H "Authorization: Bearer $TOKEN" \
-    -F "file=@$pdf" | python3 -c "import sys,json; print(json.load(sys.stdin)['file_id'])")
-  echo "$pdf → $FILE_ID"
-done
+python3 -c "
+import subprocess, json, sys, glob
+
+TOKEN = '<TOKEN_VALUE>'
+pdfs = glob.glob('/path/to/folder/*.pdf')
+
+for pdf in pdfs:
+    r = subprocess.run(['curl', '-s', '-X', 'POST', 'https://mcp.request.pt/upload',
+        '-H', f'Authorization: Bearer {TOKEN}', '-F', f'file=@{pdf}'],
+        capture_output=True, text=True)
+    d = json.loads(r.stdout)
+    print(f'{pdf} → {d.get(\"file_id\", \"ERROR: \" + str(d))}')
+"
 ```
 
 Then call `parse_invoice(file_id=...)` for each file_id via MCP tool. Results are small JSON — no context issues.
