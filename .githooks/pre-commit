@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Auto-increment patch version for plugins with staged changes
+
+PLUGINS_DIR="plugins"
+
+# Get unique plugin dirs with staged changes
+changed_plugins=$(git diff --cached --name-only | grep "^${PLUGINS_DIR}/" | cut -d/ -f1-2 | sort -u)
+
+for plugin_dir in $changed_plugins; do
+  manifest="${plugin_dir}/.claude-plugin/plugin.json"
+
+  # Skip if no manifest (not a valid plugin)
+  [ -f "$manifest" ] || continue
+
+  # Skip if the manifest itself is already staged (manual version bump)
+  if git diff --cached --name-only | grep -q "^${manifest}$"; then
+    continue
+  fi
+
+  # Bump patch version: 1.0.0 → 1.0.1
+  current=$(python3 -c "import json; print(json.load(open('${manifest}'))['version'])")
+  new=$(python3 -c "
+v = '${current}'.split('.')
+v[2] = str(int(v[2]) + 1)
+print('.'.join(v))
+")
+
+  # Update manifest
+  python3 -c "
+import json
+with open('${manifest}', 'r') as f:
+    data = json.load(f)
+data['version'] = '${new}'
+with open('${manifest}', 'w') as f:
+    json.dump(data, f, indent=2)
+    f.write('\n')
+"
+
+  git add "$manifest"
+  echo "📦 ${plugin_dir}: ${current} → ${new}"
+done
