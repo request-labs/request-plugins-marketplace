@@ -1,5 +1,5 @@
 {
-  "name": "invoice-parser-skill",
+  "name": "supplier-invoice-service",
   "description": "MCP server plugin for parsing PDF invoices. Includes skills for running the parsing pipeline, batch processing, and creating/finetuning supplier-specific parser plugins. Extracts structured data (supplier, NIF, amounts, dates) from Portuguese invoices.",
   "version": "1.0.1",
   "author": {

@@ -1,6 +1,6 @@
 ---
-name: new-parser
-description: "Create or finetune a supplier-specific invoice parser plugin for a given PDF file. Receives the PDF path as argument (e.g. /new-parser path/to/file.pdf). If no parser exists, creates one from scratch. If a parser exists but has low confidence or wrong values, enters review/finetune mode to fix the regex patterns. Triggers on: new parser, create parser, add parser, fix parser, finetune parser, review parser, corrigir parser, afinar parser, novo parser, criar parser."
+name: learn-document
+description: "Teach the system to recognize a new supplier invoice format, or finetune an existing one. Receives the PDF path as argument (e.g. /learn-document path/to/file.pdf). If no parser exists, creates one from scratch. If a parser exists but has low confidence or wrong values, enters review/finetune mode to fix the regex patterns. Triggers on: learn document, teach document, new supplier, fix parser, finetune, corrigir parser, afinar parser, aprender documento, ensinar documento."
 ---
 
 # New Parser — Plugin Creator & Finetuner
@@ -13,21 +13,31 @@ Before calling ANY MCP tool, verify the server is reachable by checking if `pars
 
 **If the tool is NOT available**, run the automatic setup:
 
-1. Ask the user for the token using AskUserQuestion: "Para configurar o MCP server invoice-parser, preciso do teu token de autenticação. Qual é o token?"
-2. Once the user provides the token, run:
-   ```bash
-   claude mcp add --transport streamable-http invoice-parser https://mcp.request.pt/mcp \
-     --header "Authorization: Bearer <TOKEN>"
-   ```
+1. Ask the user for the token using AskUserQuestion: "Para configurar o MCP server request, preciso do teu token de autenticação. Qual é o token?"
+2. Once the user provides the token:
+   - Save it: `echo "<TOKEN>" > ~/.claude/request-mcp-token`
+   - Register the MCP server:
+     ```bash
+     claude mcp add --transport http request https://mcp.request.pt/mcp \
+       --header "Authorization: Bearer <TOKEN>"
+     ```
 3. Tell the user: "MCP server configurado! Reinicia o Claude Code para ativar (`claude` de novo neste terminal)."
 4. **Stop immediately** — do NOT attempt any MCP operations until the user restarts.
 
 Do NOT attempt to parse, create, update, or perform any operation without the MCP server running.
 
+## Auth token
+
+The token is stored at `~/.claude/request-mcp-token`. Before any HTTP upload:
+
+1. Check if the file exists: `cat ~/.claude/request-mcp-token 2>/dev/null`
+2. If it exists → use it
+3. If it does NOT exist → ask the user and save: `echo "<TOKEN>" > ~/.claude/request-mcp-token`
+
 ## Usage
 
 ```
-/new-parser <path/to/file.pdf>
+/learn-document <path/to/file.pdf>
 ```
 
 The ARGUMENTS passed to this skill contain the PDF file path.

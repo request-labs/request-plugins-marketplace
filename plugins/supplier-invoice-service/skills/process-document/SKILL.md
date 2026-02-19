@@ -1,11 +1,11 @@
 ---
-name: parser
-description: "Invoice parser — run the parsing pipeline on PDFs using the Supabase registry. Use for batch processing, managing existing parsers (toggle/list/delete), and running the extraction pipeline. For creating NEW parsers, use the new-parser skill instead."
+name: process-document
+description: "Process supplier invoice PDFs — upload, extract structured data (supplier, NIF, amounts, dates, VAT), and return normalized JSON. Supports single and batch processing. Also manages registered parsers (list, view source, toggle, disable). To create or finetune a parser for a new supplier, use the learn-document skill instead."
 ---
 
 # Invoice Parser — Supabase Registry
 
-Plugins live in a **Supabase database**. All operations go through the `invoice-parser` MCP server tools.
+Plugins live in a **Supabase database**. All operations go through the `request` MCP server tools.
 
 ## Pre-flight check (REQUIRED)
 
@@ -13,12 +13,14 @@ Before calling ANY MCP tool, verify the server is reachable by checking if `pars
 
 **If the tool is NOT available**, run the automatic setup:
 
-1. Ask the user for the token using AskUserQuestion: "Para configurar o MCP server invoice-parser, preciso do teu token de autenticação. Qual é o token?"
-2. Once the user provides the token, run:
-   ```bash
-   claude mcp add --transport streamable-http invoice-parser https://mcp.request.pt/mcp \
-     --header "Authorization: Bearer <TOKEN>"
-   ```
+1. Ask the user for the token using AskUserQuestion: "Para configurar o MCP server request, preciso do teu token de autenticação. Qual é o token?"
+2. Once the user provides the token:
+   - Save it: `echo "<TOKEN>" > ~/.claude/request-mcp-token`
+   - Register the MCP server:
+     ```bash
+     claude mcp add --transport http request https://mcp.request.pt/mcp \
+       --header "Authorization: Bearer <TOKEN>"
+     ```
 3. Tell the user: "MCP server configurado! Reinicia o Claude Code para ativar (`claude` de novo neste terminal)."
 4. **Stop immediately** — do NOT attempt any MCP operations until the user restarts.
 
@@ -38,6 +40,17 @@ Do NOT attempt to parse, list, or perform any operation without the MCP server r
 
 There is no delete operation — use `disable_parser` instead (soft delete).
 
+## Auth token (REQUIRED)
+
+The token is stored at `~/.claude/request-mcp-token`. Before any upload:
+
+1. Check if the file exists: `cat ~/.claude/request-mcp-token 2>/dev/null`
+2. If it exists → use it
+3. If it does NOT exist → ask the user: "Preciso do token de autenticação para o MCP server request. Qual é o token?"
+4. Once provided, save it: `echo "<TOKEN>" > ~/.claude/request-mcp-token`
+
+**Never hardcode the token. Always read from this file.**
+
 ## How to parse a PDF (2-step flow)
 
 The MCP server runs **remotely**. PDFs must be uploaded first via HTTP, then parsed via MCP tool. This keeps the PDF binary out of the Claude context window.
@@ -45,14 +58,13 @@ The MCP server runs **remotely**. PDFs must be uploaded first via HTTP, then par
 ### Step 1: Upload the PDF via HTTP
 
 ```bash
+TOKEN=$(cat ~/.claude/request-mcp-token)
 curl -s -X POST https://mcp.request.pt/upload \
-  -H "Authorization: Bearer <token>" \
+  -H "Authorization: Bearer $TOKEN" \
   -F "file=@/path/to/fatura.pdf"
 ```
 
 Response: `{"file_id": "abc123"}`
-
-Read the auth token from `~/.claude/mcp_servers.json` → `invoice-parser.headers.Authorization` (strip the "Bearer " prefix if needed).
 
 ### Step 2: Parse via MCP tool
 
@@ -69,6 +81,7 @@ The `file_id` is a short string — no base64, no large payloads, minimal tokens
 For multiple PDFs, use a Bash loop:
 
 ```bash
+TOKEN=$(cat ~/.claude/request-mcp-token)
 for pdf in /path/to/folder/*.pdf; do
   FILE_ID=$(curl -s -X POST https://mcp.request.pt/upload \
     -H "Authorization: Bearer $TOKEN" \
@@ -109,10 +122,10 @@ When `parse_invoice()` returns `"status": "no_match"`, **always ask the user** i
 
 - "Não existe parser para este ficheiro. Queres que crie um novo parser?" with options "Sim, criar parser" / "Não, ignorar"
 
-If yes, invoke the **new-parser** skill (`/new-parser <file.pdf>`).
+If yes, invoke the **learn-document** skill (`/learn-document <file.pdf>`).
 
 In batch processing, collect all no_match files and ask once at the end.
 
 ## Plugin rules
 
-See the **new-parser** skill for detailed plugin rules (regex patterns, number formats, OCR safety, confidence calculation).
+See the **learn-document** skill for detailed plugin rules (regex patterns, number formats, OCR safety, confidence calculation).
