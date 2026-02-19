@@ -39,3 +39,28 @@ with open('${manifest}', 'w') as f:
   git add "$manifest"
   echo "📦 ${plugin_dir}: ${current} → ${new}"
 done
+
+# Auto-bump marketplace version when marketplace.json is staged
+MARKETPLACE=".claude-plugin/marketplace.json"
+
+if git diff --cached --name-only | grep -q "^${MARKETPLACE}$"; then
+  current=$(python3 -c "import json; print(json.load(open('${MARKETPLACE}'))['metadata']['version'])")
+  new=$(python3 -c "
+v = '${current}'.split('.')
+v[2] = str(int(v[2]) + 1)
+print('.'.join(v))
+")
+
+  python3 -c "
+import json
+with open('${MARKETPLACE}', 'r') as f:
+    data = json.load(f)
+data['metadata']['version'] = '${new}'
+with open('${MARKETPLACE}', 'w') as f:
+    json.dump(data, f, indent=2)
+    f.write('\n')
+"
+
+  git add "$MARKETPLACE"
+  echo "🏪 marketplace: ${current} → ${new}"
+fi
