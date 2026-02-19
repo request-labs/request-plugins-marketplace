@@ -14,11 +14,9 @@ Before doing anything:
 1. **Verify MCP server** — check that `parse_invoice` is available as a tool. If not:
    - Read `~/.claude/settings.json` and check for `env.REQUEST_MCP_TOKEN`
    - If token exists → tell user to check `/mcp` (server may be down or plugin not enabled)
-   - If token missing → ask user for the token using AskUserQuestion, save it to `~/.claude/settings.json` (merge into existing JSON) and `~/.claude/request-mcp-token`, then tell user to restart Claude Code. **Stop immediately.**
+   - If token missing → ask user for the token using AskUserQuestion, save it to `~/.claude/settings.json` (merge into existing JSON), then tell user to restart Claude Code. **Stop immediately.**
 
-2. **Verify auth token file** — read `~/.claude/request-mcp-token`. If missing, run token setup above.
-
-3. **Resolve input files** — if given a directory, find all `*.pdf` files in it. If given a file list, validate each exists. Report count: "Encontrados X ficheiros PDF para processar."
+2. **Resolve input files** — if given a directory, find all `*.pdf` files in it. If given a file list, validate each exists. Report count: "Encontrados X ficheiros PDF para processar."
 
 If zero PDFs found, tell the user and stop.
 
@@ -31,7 +29,7 @@ Process files as fast as possible. You may call multiple upload+parse operations
 #### Step 1: Upload via HTTP
 
 ```bash
-TOKEN=$(cat ~/.claude/request-mcp-token)
+TOKEN=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])")
 FILE_ID=$(curl -s -X POST https://mcp.request.pt/upload \
   -H "Authorization: Bearer $TOKEN" \
   -F "file=@/path/to/file.pdf" | python3 -c "import sys,json; print(json.load(sys.stdin)['file_id'])")
@@ -144,5 +142,5 @@ If yes, invoke `/learn-document <path>` for each no_match file sequentially.
 - **Never use `pdf_path`** — always upload → `file_id`
 - **Parallel processing** — maximize throughput, process multiple files concurrently
 - **Graceful error handling** — log errors, continue to next file, include in final report
-- **Never hardcode tokens** — always read from `~/.claude/request-mcp-token`
+- **Never hardcode tokens** — always read from `~/.claude/settings.json` → `env.REQUEST_MCP_TOKEN`
 - **Language** — all user-facing output in Portuguese (PT-PT)

@@ -22,7 +22,7 @@ Run the **automatic token setup**:
    - Read the existing file (or start with `{}` if it doesn't exist)
    - Merge `{"env": {"REQUEST_MCP_TOKEN": "<TOKEN>"}}` into the existing JSON (preserve all other settings)
    - Write the file back using the Write tool
-   - Also save a copy: `echo "<TOKEN>" > ~/.claude/request-mcp-token` (used for HTTP uploads)
+
 5. Tell the user: "Token guardado! Reinicia o Claude Code para ativar (`claude` de novo neste terminal)."
 6. **Stop immediately** — do NOT attempt any MCP operations until the user restarts.
 
@@ -44,13 +44,15 @@ There is no delete operation — use `disable_parser` instead (soft delete).
 
 ## Auth token (REQUIRED)
 
-The token lives in two places:
-- **`~/.claude/settings.json`** → `env.REQUEST_MCP_TOKEN` (used by the plugin MCP server automatically)
-- **`~/.claude/request-mcp-token`** → plain text file (used for HTTP upload `curl` commands)
+The token lives in **`~/.claude/settings.json`** → `env.REQUEST_MCP_TOKEN` (used by the plugin MCP server automatically and for HTTP uploads).
 
-Before any upload, read the token: `cat ~/.claude/request-mcp-token 2>/dev/null`
+Before any upload, read the token:
 
-If the file does NOT exist, run the token setup from the Pre-flight check section above.
+```bash
+TOKEN=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])")
+```
+
+If the key does NOT exist, run the token setup from the Pre-flight check section above.
 
 **Never hardcode the token.**
 
@@ -61,7 +63,7 @@ The MCP server runs **remotely**. PDFs must be uploaded first via HTTP, then par
 ### Step 1: Upload the PDF via HTTP
 
 ```bash
-TOKEN=$(cat ~/.claude/request-mcp-token)
+TOKEN=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])")
 curl -s -X POST https://mcp.request.pt/upload \
   -H "Authorization: Bearer $TOKEN" \
   -F "file=@/path/to/fatura.pdf"
@@ -84,7 +86,7 @@ The `file_id` is a short string — no base64, no large payloads, minimal tokens
 For multiple PDFs, use a Bash loop:
 
 ```bash
-TOKEN=$(cat ~/.claude/request-mcp-token)
+TOKEN=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])")
 for pdf in /path/to/folder/*.pdf; do
   FILE_ID=$(curl -s -X POST https://mcp.request.pt/upload \
     -H "Authorization: Bearer $TOKEN" \

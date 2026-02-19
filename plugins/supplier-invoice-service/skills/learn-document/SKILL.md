@@ -22,7 +22,7 @@ Run the **automatic token setup**:
    - Read the existing file (or start with `{}` if it doesn't exist)
    - Merge `{"env": {"REQUEST_MCP_TOKEN": "<TOKEN>"}}` into the existing JSON (preserve all other settings)
    - Write the file back using the Write tool
-   - Also save a copy: `echo "<TOKEN>" > ~/.claude/request-mcp-token` (used for HTTP uploads)
+
 5. Tell the user: "Token guardado! Reinicia o Claude Code para ativar (`claude` de novo neste terminal)."
 6. **Stop immediately** — do NOT attempt any MCP operations until the user restarts.
 
@@ -30,13 +30,15 @@ Do NOT attempt to parse, create, update, or perform any operation without the MC
 
 ## Auth token
 
-The token lives in two places:
-- **`~/.claude/settings.json`** → `env.REQUEST_MCP_TOKEN` (used by the plugin MCP server automatically)
-- **`~/.claude/request-mcp-token`** → plain text file (used for HTTP upload `curl` commands)
+The token lives in **`~/.claude/settings.json`** → `env.REQUEST_MCP_TOKEN` (used by the plugin MCP server automatically and for HTTP uploads).
 
-Before any upload, read the token: `cat ~/.claude/request-mcp-token 2>/dev/null`
+Before any upload, read the token:
 
-If the file does NOT exist, run the token setup from the Pre-flight check section above.
+```bash
+TOKEN=$(python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])")
+```
+
+If the key does NOT exist, run the token setup from the Pre-flight check section above.
 
 ## Usage
 

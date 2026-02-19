@@ -13,7 +13,7 @@ claude plugin marketplace add https://github.com/request-labs/request-plugins-ma
 ### 2. Install a plugin
 
 ```bash
-claude plugin install invoice-parser-skill
+claude plugin install supplier-invoice-service
 ```
 
 ### 3. Restart Claude Code
@@ -25,7 +25,7 @@ claude
 
 ## Available Plugins
 
-### invoice-parser-skill
+### supplier-invoice-service
 
 Parse PDF invoices and extract structured data (supplier, NIF, amounts, dates, VAT) using a remote MCP server with a Supabase-backed parser registry.
 
@@ -33,10 +33,16 @@ Parse PDF invoices and extract structured data (supplier, NIF, amounts, dates, V
 
 | Skill | Trigger | Description |
 |---|---|---|
-| `/parser` | `parse invoice`, `list parsers` | Run the parsing pipeline, batch process PDFs, manage parsers (list/toggle/disable) |
-| `/new-parser <file.pdf>` | `create parser`, `new parser`, `fix parser` | Create or finetune a supplier-specific parser from a PDF |
+| `/process-document` | `process document`, `parse invoice`, `list parsers` | Run the parsing pipeline, batch process PDFs, manage parsers (list/toggle/disable) |
+| `/learn-document <file.pdf>` | `learn document`, `teach document`, `new supplier`, `fix parser`, `finetune` | Create or finetune a supplier-specific parser from a PDF |
 
-**First-time setup:** When you invoke a skill for the first time, it will ask for your authentication token and configure the MCP server automatically via `claude mcp add`. The token is stored permanently — you only need to provide it once.
+**Agent included:**
+
+| Agent | Description |
+|---|---|
+| `process-invoices` | Autonomous batch processor — receives a directory, uploads and parses all PDFs, classifies by confidence, and produces a markdown + Excel report |
+
+**First-time setup:** When you invoke a skill for the first time, it will ask for your authentication token and save it to `~/.claude/settings.json` as `env.REQUEST_MCP_TOKEN`. The token is stored permanently — you only need to provide it once.
 
 **Output fields:**
 
@@ -49,9 +55,14 @@ Parse PDF invoices and extract structured data (supplier, NIF, amounts, dates, V
 | `periodo` | str/null | Billing period |
 | `subtotal` | float | Before taxes |
 | `iva` | float | VAT amount |
+| `imposto_selo` | float/null | Stamp tax if applicable |
+| `outros_encargos` | float/null | Other charges |
 | `total` | float | Final amount |
 | `moeda` | str | Currency (ISO-4217) |
+| `ficheiro` | str | Original PDF filename |
 | `confidence` | float | 0.0–1.0 extraction confidence |
+| `warnings` | list[str] | Any extraction issues |
+| `nota_iva` | str/null | VAT exemption note |
 
 ## For developers
 
@@ -61,12 +72,14 @@ Parse PDF invoices and extract structured data (supplier, NIF, amounts, dates, V
 .claude-plugin/
   marketplace.json       # Marketplace manifest — lists all plugins
 plugins/
-  invoice-parser-skill/
+  supplier-invoice-service/
     .claude-plugin/
-      plugin.json        # Plugin manifest (name, version, author)
+      plugin.json        # Plugin manifest (name, version, author, MCP server)
     skills/
-      parser/SKILL.md    # Parsing & batch processing skill
-      new-parser/SKILL.md # Parser creation & finetuning skill
+      process-document/SKILL.md   # Parsing & batch processing skill
+      learn-document/SKILL.md     # Parser creation & finetuning skill
+    agents/
+      process-invoices.md         # Autonomous batch processor agent
 .githooks/
   pre-commit             # Auto-bumps plugin patch version on commit
 ```
@@ -76,7 +89,8 @@ plugins/
 1. Create a folder under `plugins/<plugin-name>/`
 2. Add `.claude-plugin/plugin.json` with name, description, version, author
 3. Add skills under `skills/<skill-name>/SKILL.md`
-4. Register the plugin in `.claude-plugin/marketplace.json`:
+4. Optionally add agents under `agents/<agent-name>.md`
+5. Register the plugin in `.claude-plugin/marketplace.json`:
    ```json
    {
      "name": "your-plugin-name",
