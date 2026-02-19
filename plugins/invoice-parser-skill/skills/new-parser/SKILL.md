@@ -5,7 +5,7 @@ description: "Create or finetune a supplier-specific invoice parser plugin for a
 
 # New Parser — Plugin Creator & Finetuner
 
-Goal: given a PDF file, **create or finetune a deterministic parser plugin**, test it, get user validation, and register it in Supabase.
+Create or finetune a deterministic parser plugin from a PDF file, test it, get user validation, and register it in Supabase.
 
 ## Pre-flight check (REQUIRED)
 
