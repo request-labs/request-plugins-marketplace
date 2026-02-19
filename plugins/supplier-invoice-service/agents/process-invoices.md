@@ -111,34 +111,41 @@ Only show if there are errors.
 
 ## Excel report
 
-After the markdown report, generate an Excel file (`resultado-importacao.xlsx`) in the **same directory** as the input PDFs. Use `openpyxl` via a temporary Python script.
+After the markdown report, generate an Excel file (`resultado-importacao.xlsx`) in the **same directory** as the input PDFs.
 
-### Sheet "Faturas"
+Use the plugin's `scripts/gen_excel.py` script. Find it with:
 
-Columns: Ficheiro, Fornecedor, NIF, Nº Fatura, Data, Total, Moeda, Confidence.
+```bash
+find ~/.claude -path "*/supplier-invoice-service/scripts/gen_excel.py" -print -quit 2>/dev/null
+```
 
-- Include all `matched` and `low_confidence` results
-- Header row: bold, white text (`FFFFFF`), dark blue fill (`1F4E79`), centered
-- Total column: number format `#,##0.00`
-- Add a **TOTAL row** at the bottom with an Excel `=SUM()` formula on the Total column
-- Enable auto-filter on the header
-- Auto-fit column widths (approximate: Ficheiro 42, Fornecedor 30, NIF 15, Nº Fatura 30, Data 12, Total 12, Moeda 8, Confidence 12)
+### Usage
 
-### Sheet "Resumo"
+Pipe JSON data to the script with the output path as argument:
 
-| Métrica | Valor |
-|---|---|
-| Total ficheiros | N |
-| Sucesso | N |
-| Baixa confiança | N |
-| Sem parser | N |
-| Erros | N |
+```bash
+echo '{"faturas": [...], "resumo": {...}}' | python3 /path/to/scripts/gen_excel.py /path/to/output/resultado-importacao.xlsx
+```
 
-Same header styling as Faturas sheet.
+### Input JSON schema
 
-### Implementation
+```json
+{
+  "faturas": [
+    {"ficheiro": "x.pdf", "fornecedor": "X", "nif_fornecedor": "123",
+     "numero": "FT1", "data_emissao": "01-01-2026", "total": 100.0,
+     "moeda": "EUR", "confidence": 1.0}
+  ],
+  "resumo": {
+    "total": 10, "sucesso": 7, "baixa_confianca": 1,
+    "sem_parser": 1, "erros": 1
+  }
+}
+```
 
-Write a temporary Python script, execute it, then **delete the script**. Do not leave temp files behind.
+Include all `matched` and `low_confidence` results in `faturas`. The script handles all formatting (headers, SUM row, auto-filter, column widths).
+
+**Never write temporary scripts** — always use `gen_excel.py`.
 
 Tell the user the full path to the generated file.
 
