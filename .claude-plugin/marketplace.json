@@ -10,8 +10,8 @@
   },
   "plugins": [
     {
-      "name": "process-invoice-plugin",
-      "source": "./plugins/process-invoice-plugin"
+      "name": "invoice-parser-skill",
+      "source": "./plugins/invoice-parser-skill"
     }
   ]
 }

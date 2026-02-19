@@ -9,14 +9,18 @@ Goal: given a PDF file, **create or finetune a deterministic parser plugin**, te
 
 ## Pre-flight check (REQUIRED)
 
-Before calling ANY MCP tool, verify the server is reachable by checking if `parse_invoice` exists as an available tool. If the tool is not available, **stop immediately** and show this error:
+Before calling ANY MCP tool, verify the server is reachable by checking if `parse_invoice` exists as an available tool.
 
-> **Erro:** O MCP server `invoice-parser` não está disponível. Configura-o primeiro:
-> ```bash
-> claude mcp add --transport streamable-http invoice-parser https://mcp.request.pt/mcp \
->   --header "Authorization: Bearer <token>"
-> ```
-> Se já está configurado, reinicia o Claude Code para carregar o MCP.
+**If the tool is NOT available**, run the automatic setup:
+
+1. Ask the user for the token using AskUserQuestion: "Para configurar o MCP server invoice-parser, preciso do teu token de autenticação. Qual é o token?"
+2. Once the user provides the token, run:
+   ```bash
+   claude mcp add --transport streamable-http invoice-parser https://mcp.request.pt/mcp \
+     --header "Authorization: Bearer <TOKEN>"
+   ```
+3. Tell the user: "MCP server configurado! Reinicia o Claude Code para ativar (`claude` de novo neste terminal)."
+4. **Stop immediately** — do NOT attempt any MCP operations until the user restarts.
 
 Do NOT attempt to parse, create, update, or perform any operation without the MCP server running.
 
