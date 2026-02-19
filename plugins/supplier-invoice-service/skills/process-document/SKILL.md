@@ -66,48 +66,34 @@ There is no delete operation — use `disable_parser` instead (soft delete).
 
 The token lives in **`~/.claude/settings.json`** → `env.REQUEST_MCP_TOKEN` (used by the plugin MCP server automatically and for HTTP uploads).
 
-**Never hardcode the token. Never use `curl` or `$()` in Bash** — both trigger permission prompts in Claude Code. Always use the Python upload helper below.
+**Never hardcode the token. Never use `curl`, `$()`, or `python3 -c` inline blobs** — all trigger permission prompts in Claude Code. Always use the upload script.
+
+## Upload script
+
+The plugin includes a standalone upload script at `scripts/upload.py` (relative to the plugin root). Find it with:
+
+```bash
+find ~/.claude -path "*/supplier-invoice-service/scripts/upload.py" -print -quit 2>/dev/null
+```
+
+This script reads the token from settings automatically and uploads via Python `urllib` — no curl, no permission prompts.
 
 ## How to parse a PDF (2-step flow)
 
 The MCP server runs **remotely**. PDFs must be uploaded first via HTTP, then parsed via MCP tool. This keeps the PDF binary out of the Claude context window.
 
-### Step 1: Upload the PDF via Python
-
-Use a **single `python3 -c` command** that reads the token and uploads in one shot. No curl, no command substitution:
+### Step 1: Upload the PDF
 
 ```bash
-python3 -c "
-import json, os, urllib.request, urllib.parse
-
-token = json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN']
-pdf_path = '/path/to/fatura.pdf'
-
-import mimetypes
-boundary = '----PythonUpload'
-filename = os.path.basename(pdf_path)
-with open(pdf_path, 'rb') as f:
-    data = f.read()
-body = (
-    f'--{boundary}\r\n'
-    f'Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n'
-    f'Content-Type: {mimetypes.guess_type(pdf_path)[0] or \"application/pdf\"}\r\n\r\n'
-).encode() + data + f'\r\n--{boundary}--\r\n'.encode()
-
-req = urllib.request.Request('https://mcp.request.pt/upload', data=body, method='POST')
-req.add_header('Authorization', f'Bearer {token}')
-req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
-resp = json.loads(urllib.request.urlopen(req).read())
-print(json.dumps(resp))
-"
+python3 /path/to/supplier-invoice-service/scripts/upload.py /path/to/fatura.pdf
 ```
 
-Response: `{"file_id": "abc123"}`
+Output: `fatura.pdf\t<file_id>` (tab-separated filename and file_id).
 
 ### Step 2: Parse via MCP tool
 
 ```
-parse_invoice(file_id="abc123")
+parse_invoice(file_id="<file_id>")
 ```
 
 The `file_id` is a short string — no base64, no large payloads, minimal tokens.
@@ -116,38 +102,15 @@ The `file_id` is a short string — no base64, no large payloads, minimal tokens
 
 ### Batch processing
 
-For multiple PDFs, use the same Python approach in a loop:
+Upload an entire directory in one command:
 
 ```bash
-python3 -c "
-import json, os, urllib.request, glob, mimetypes
-
-token = json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN']
-boundary = '----PythonUpload'
-
-for pdf_path in sorted(glob.glob('/path/to/folder/*.pdf')):
-    filename = os.path.basename(pdf_path)
-    with open(pdf_path, 'rb') as f:
-        data = f.read()
-    body = (
-        f'--{boundary}\r\n'
-        f'Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n'
-        f'Content-Type: {mimetypes.guess_type(pdf_path)[0] or \"application/pdf\"}\r\n\r\n'
-    ).encode() + data + f'\r\n--{boundary}--\r\n'.encode()
-    req = urllib.request.Request('https://mcp.request.pt/upload', data=body, method='POST')
-    req.add_header('Authorization', f'Bearer {token}')
-    req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
-    try:
-        resp = json.loads(urllib.request.urlopen(req).read())
-        print(f'{filename} -> {resp.get(\"file_id\", \"ERROR: \" + str(resp))}')
-    except Exception as e:
-        print(f'{filename} -> ERROR: {e}')
-"
+python3 /path/to/supplier-invoice-service/scripts/upload.py /path/to/folder/
 ```
 
-Then call `parse_invoice(file_id=...)` for each file_id via MCP tool.
+Output: one line per file with `filename\tfile_id`. Then call `parse_invoice(file_id=...)` for each.
 
-For large batches (20+ files), write a Python script that uploads all files and calls the MCP tools/call endpoint directly via SSE/HTTP to avoid round-trips through Claude. See `process_invoices.py` for reference.
+For large batches (20+ files), write a Python script that uploads all files and calls the MCP tools/call endpoint directly via SSE/HTTP to avoid round-trips through Claude.
 
 ## Normalized fields (output schema)
 

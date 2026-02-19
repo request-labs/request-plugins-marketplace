@@ -32,44 +32,31 @@ Do NOT attempt to parse, create, update, or perform any operation without the MC
 
 The token lives in **`~/.claude/settings.json`** → `env.REQUEST_MCP_TOKEN` (used by the plugin MCP server automatically and for HTTP uploads).
 
-**Never use `curl` or `$()` in Bash** — both trigger permission prompts in Claude Code. Always use the Python upload helper below.
+**Never use `curl`, `$()`, or `python3 -c` inline blobs** — all trigger permission prompts in Claude Code. Always use the upload script.
 
 If the token key does NOT exist in settings, run the token setup from the Pre-flight check section above.
+
+## Upload script
+
+The plugin includes a standalone upload script at `scripts/upload.py` (relative to the plugin root). Find it with:
+
+```bash
+find ~/.claude -path "*/supplier-invoice-service/scripts/upload.py" -print -quit 2>/dev/null
+```
+
+This script reads the token from settings automatically and uploads via Python `urllib` — no curl, no permission prompts.
 
 ## How to parse a PDF (2-step flow)
 
 The MCP server runs **remotely**. PDFs must be uploaded first via HTTP, then parsed via MCP tool.
 
-### Step 1: Upload the PDF via Python
-
-Use a **single `python3 -c` command** — no curl, no command substitution:
+### Step 1: Upload the PDF
 
 ```bash
-python3 -c "
-import json, os, urllib.request, mimetypes
-
-token = json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN']
-pdf_path = '/path/to/fatura.pdf'
-
-boundary = '----PythonUpload'
-filename = os.path.basename(pdf_path)
-with open(pdf_path, 'rb') as f:
-    data = f.read()
-body = (
-    f'--{boundary}\r\n'
-    f'Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n'
-    f'Content-Type: {mimetypes.guess_type(pdf_path)[0] or \"application/pdf\"}\r\n\r\n'
-).encode() + data + f'\r\n--{boundary}--\r\n'.encode()
-
-req = urllib.request.Request('https://mcp.request.pt/upload', data=body, method='POST')
-req.add_header('Authorization', f'Bearer {token}')
-req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
-resp = json.loads(urllib.request.urlopen(req).read())
-print(json.dumps(resp))
-"
+python3 /path/to/supplier-invoice-service/scripts/upload.py /path/to/fatura.pdf
 ```
 
-Response: `{"file_id": "abc123"}`. Extract the `file_id` from the JSON response.
+Output: `fatura.pdf\t<file_id>` (tab-separated filename and file_id).
 
 ### Step 2: Parse via MCP tool
 
@@ -113,7 +100,7 @@ Upload and parse the PDF first (upload → `file_id` → `parse_invoice`), then 
 
 ### Step 1: Parse and get raw text
 
-Upload the PDF (curl → `file_id`), then run `parse_invoice(file_id=...)`. If no match, the raw extracted text is returned. Capture it.
+Upload the PDF (upload script → `file_id`), then run `parse_invoice(file_id=...)`. If no match, the raw extracted text is returned. Capture it.
 
 ### Step 2: Analyze the extracted text
 
