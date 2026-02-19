@@ -11,28 +11,32 @@ Create or finetune a deterministic parser plugin from a PDF file, test it, get u
 
 Before calling ANY MCP tool, verify the server is reachable by checking if `parse_invoice` exists as an available tool.
 
-**If the tool is NOT available**, run the automatic setup:
+**If the tool is NOT available**, the MCP server is configured by the plugin via `plugin.json` but needs the `REQUEST_MCP_TOKEN` environment variable set in `~/.claude/settings.json`.
 
-1. Ask the user for the token using AskUserQuestion: "Para configurar o MCP server request, preciso do teu token de autenticação. Qual é o token?"
-2. Once the user provides the token:
-   - Save it: `echo "<TOKEN>" > ~/.claude/request-mcp-token`
-   - Register the MCP server:
-     ```bash
-     claude mcp add --transport http request https://mcp.request.pt/mcp \
-       --header "Authorization: Bearer <TOKEN>"
-     ```
-3. Tell the user: "MCP server configurado! Reinicia o Claude Code para ativar (`claude` de novo neste terminal)."
-4. **Stop immediately** — do NOT attempt any MCP operations until the user restarts.
+Run the **automatic token setup**:
+
+1. Check if the token already exists: read `~/.claude/settings.json` and look for `env.REQUEST_MCP_TOKEN`
+2. If it exists → the issue is something else (server down, plugin not enabled). Tell the user to check `/mcp`.
+3. If it does NOT exist → ask the user using AskUserQuestion: "Para usar o MCP server request, preciso do teu token de autenticação. Qual é o token?"
+4. Once the user provides the token, save it to `~/.claude/settings.json`:
+   - Read the existing file (or start with `{}` if it doesn't exist)
+   - Merge `{"env": {"REQUEST_MCP_TOKEN": "<TOKEN>"}}` into the existing JSON (preserve all other settings)
+   - Write the file back using the Write tool
+   - Also save a copy: `echo "<TOKEN>" > ~/.claude/request-mcp-token` (used for HTTP uploads)
+5. Tell the user: "Token guardado! Reinicia o Claude Code para ativar (`claude` de novo neste terminal)."
+6. **Stop immediately** — do NOT attempt any MCP operations until the user restarts.
 
 Do NOT attempt to parse, create, update, or perform any operation without the MCP server running.
 
 ## Auth token
 
-The token is stored at `~/.claude/request-mcp-token`. Before any HTTP upload:
+The token lives in two places:
+- **`~/.claude/settings.json`** → `env.REQUEST_MCP_TOKEN` (used by the plugin MCP server automatically)
+- **`~/.claude/request-mcp-token`** → plain text file (used for HTTP upload `curl` commands)
 
-1. Check if the file exists: `cat ~/.claude/request-mcp-token 2>/dev/null`
-2. If it exists → use it
-3. If it does NOT exist → ask the user and save: `echo "<TOKEN>" > ~/.claude/request-mcp-token`
+Before any upload, read the token: `cat ~/.claude/request-mcp-token 2>/dev/null`
+
+If the file does NOT exist, run the token setup from the Pre-flight check section above.
 
 ## Usage
 
