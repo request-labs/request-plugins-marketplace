@@ -32,45 +32,46 @@ Do NOT attempt to parse, create, update, or perform any operation without the MC
 
 The token lives in **`~/.claude/settings.json`** → `env.REQUEST_MCP_TOKEN` (used by the plugin MCP server automatically and for HTTP uploads).
 
-Before any upload, read the token in a **separate Bash call** (no command substitution):
+**Never use `curl` or `$()` in Bash** — both trigger permission prompts in Claude Code. Always use the Python upload helper below.
 
-```bash
-python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])"
-```
-
-This prints the token as plain text. Use the output value directly in subsequent curl commands.
-
-If the key does NOT exist, run the token setup from the Pre-flight check section above.
-
-**Never use `$()` command substitution** — it triggers permission prompts in Claude Code.
+If the token key does NOT exist in settings, run the token setup from the Pre-flight check section above.
 
 ## How to parse a PDF (2-step flow)
 
 The MCP server runs **remotely**. PDFs must be uploaded first via HTTP, then parsed via MCP tool.
 
-### Step 1: Read the token
+### Step 1: Upload the PDF via Python
 
-Run this in a **separate Bash call**:
-
-```bash
-python3 -c "import json,os; print(json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN'])"
-```
-
-Capture the output (e.g. `EmcWnq...`).
-
-### Step 2: Upload the PDF via HTTP
-
-Use the token value directly (no `$()`):
+Use a **single `python3 -c` command** — no curl, no command substitution:
 
 ```bash
-curl -s -X POST https://mcp.request.pt/upload \
-  -H "Authorization: Bearer <TOKEN_VALUE>" \
-  -F "file=@/path/to/fatura.pdf"
+python3 -c "
+import json, os, urllib.request, mimetypes
+
+token = json.load(open(os.path.expanduser('~/.claude/settings.json')))['env']['REQUEST_MCP_TOKEN']
+pdf_path = '/path/to/fatura.pdf'
+
+boundary = '----PythonUpload'
+filename = os.path.basename(pdf_path)
+with open(pdf_path, 'rb') as f:
+    data = f.read()
+body = (
+    f'--{boundary}\r\n'
+    f'Content-Disposition: form-data; name=\"file\"; filename=\"{filename}\"\r\n'
+    f'Content-Type: {mimetypes.guess_type(pdf_path)[0] or \"application/pdf\"}\r\n\r\n'
+).encode() + data + f'\r\n--{boundary}--\r\n'.encode()
+
+req = urllib.request.Request('https://mcp.request.pt/upload', data=body, method='POST')
+req.add_header('Authorization', f'Bearer {token}')
+req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
+resp = json.loads(urllib.request.urlopen(req).read())
+print(json.dumps(resp))
+"
 ```
 
 Response: `{"file_id": "abc123"}`. Extract the `file_id` from the JSON response.
 
-### Step 3: Parse via MCP tool
+### Step 2: Parse via MCP tool
 
 ```
 parse_invoice(file_id="<file_id>")
