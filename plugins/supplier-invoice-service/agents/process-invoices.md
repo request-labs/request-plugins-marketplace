@@ -119,33 +119,34 @@ Use the plugin's `scripts/gen_excel.py` script. Find it with:
 find ~/.claude -path "*/supplier-invoice-service/scripts/gen_excel.py" -print -quit 2>/dev/null
 ```
 
-### Usage
+### Usage (2 steps — no permission prompts)
 
-Pipe JSON data to the script with the output path as argument:
+1. **Write JSON data** to a temp file using the **Write tool** (no Bash, no permission prompt):
 
-```bash
-echo '{"faturas": [...], "resumo": {...}}' | python3 /path/to/scripts/gen_excel.py /path/to/output/resultado-importacao.xlsx
-```
+   Write to `/tmp/invoices-data.json`:
+   ```json
+   {
+     "faturas": [
+       {"ficheiro": "x.pdf", "fornecedor": "X", "nif_fornecedor": "123",
+        "numero": "FT1", "data_emissao": "01-01-2026", "total": 100.0,
+        "moeda": "EUR", "confidence": 1.0}
+     ],
+     "resumo": {
+       "total": 10, "sucesso": 7, "baixa_confianca": 1,
+       "sem_parser": 1, "erros": 1
+     }
+   }
+   ```
 
-### Input JSON schema
+2. **Run the script** — clean, short command:
 
-```json
-{
-  "faturas": [
-    {"ficheiro": "x.pdf", "fornecedor": "X", "nif_fornecedor": "123",
-     "numero": "FT1", "data_emissao": "01-01-2026", "total": 100.0,
-     "moeda": "EUR", "confidence": 1.0}
-  ],
-  "resumo": {
-    "total": 10, "sucesso": 7, "baixa_confianca": 1,
-    "sem_parser": 1, "erros": 1
-  }
-}
-```
+   ```bash
+   python3 /path/to/scripts/gen_excel.py /tmp/invoices-data.json /path/to/output/resultado-importacao.xlsx
+   ```
 
-Include all `matched` and `low_confidence` results in `faturas`. The script handles all formatting (headers, SUM row, auto-filter, column widths).
+The script auto-deletes the input JSON after reading it. Include all `matched` and `low_confidence` results in `faturas`. The script handles all formatting (headers, SUM row, auto-filter, column widths).
 
-**Never write temporary scripts** — always use `gen_excel.py`.
+**Never pipe JSON via stdin or printf. Never write temporary scripts.** Always use Write tool + `gen_excel.py`.
 
 Tell the user the full path to the generated file.
 
